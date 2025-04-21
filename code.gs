@@ -1,99 +1,99 @@
-function buatInvoiceDariTemplate(templateId, dataInvoice, namaFileBaru) {
+function createInvoiceFromTemplate(templateId, invoiceData, newFileName) {
   try {
-    // 1. Duplikasi file template
+    // 1. Duplicate the template file
     var templateFile = DriveApp.getFileById(templateId);
     var copiedFile = templateFile.makeCopy();
     var copiedFileId = copiedFile.getId();
     var copiedDoc = DocumentApp.openById(copiedFileId);
     var body = copiedDoc.getBody();
 
-    // 2. Mengubah dan mengisi format di dokumen duplikat
-    // *** Di sini Anda perlu menyesuaikan kode sesuai dengan format template Anda ***
-    // Contoh: Mengganti placeholder teks dengan data invoice
-    body.replaceText('{{nomor_invoice}}', 'INV-2025-001'); // Contoh nomor invoice statis
-    body.replaceText('{{tanggal_invoice}}', Utilities.formatDate(new Date(), Session.getTimeZone(), 'dd-MM-yyyy'));
+    // 2. Modify and fill the format in the duplicated document
+    // *** You need to adjust the code here according to your template format ***
+    // Example: Replace placeholder text with invoice data
+    body.replaceText('{{invoice_number}}', 'INV-2025-001'); // Example static invoice number
+    body.replaceText('{{invoice_date}}', Utilities.formatDate(new Date(), Session.getTimeZone(), 'dd-MM-yyyy'));
 
-    // Asumsi Anda memiliki fungsi untuk mengisi detail item dalam tabel
-    isiTabelInvoice(body, dataInvoice);
+    // Assuming you have a function to populate item details in the table
+    populateInvoiceTable(body, invoiceData);
 
     copiedDoc.saveAndClose();
 
-    // 3. Mengganti nama file
-    copiedFile.setName(namaFileBaru);
+    // 3. Rename the file
+    copiedFile.setName(newFileName);
 
-    // 4. Mengonversi ke PDF
+    // 4. Convert to PDF
     var pdfBlob = copiedFile.getAs('application/pdf');
     var pdfFile = DriveApp.createFile(pdfBlob);
 
-    // 5. Menghapus file Google Docs asli (duplikat)
+    // 5. Delete the original Google Docs file (duplicate)
     DriveApp.getFileById(copiedFileId).setTrashed(true);
-    Logger.log('File Google Docs dengan ID ' + copiedFileId + ' telah dihapus (dipindahkan ke sampah).');
-    Logger.log('File PDF dengan nama ' + namaFileBaru + '.pdf telah dibuat dengan ID ' + pdfFile.getId());
+    Logger.log('Google Docs file with ID ' + copiedFileId + ' has been deleted (moved to trash).');
+    Logger.log('PDF file with name ' + newFileName + '.pdf has been created with ID ' + pdfFile.getId());
 
   } catch (error) {
-    Logger.log('Terjadi kesalahan: ' + error);
+    Logger.log('An error occurred: ' + error);
   }
 }
 
-function isiTabelInvoice(body, dataInvoice) {
-  // *** Fungsi ini perlu disesuaikan dengan struktur tabel invoice Anda ***
-  // Contoh sederhana jika tabel invoice adalah tabel pertama dalam dokumen:
+function populateInvoiceTable(body, invoiceData) {
+  // *** This function needs to be adjusted according to your invoice table structure ***
+  // Simple example if the invoice table is the first table in the document:
   var tables = body.getTables();
   if (tables.length > 0) {
-    var invoiceTable = tables[0]; // Asumsi tabel invoice adalah tabel pertama
+    var invoiceTable = tables[0]; // Assuming the invoice table is the first table
 
-    Logger.log("Jumlah baris sebelum penghapusan: " + invoiceTable.getNumRows());
+    Logger.log("Number of rows before deletion: " + invoiceTable.getNumRows());
 
-    // Hapus baris data item yang ada (jika ada selain header)
-    // Pastikan ada lebih dari satu baris sebelum mencoba menghapus
+    // Delete existing item data rows (if any, excluding the header)
+    // Ensure there is more than one row before attempting to delete
     if (invoiceTable.getNumRows() > 1) {
-      // Hapus baris dari bawah ke atas untuk menghindari perubahan indeks
+      // Delete rows from bottom to top to avoid index changes
       for (var i = invoiceTable.getNumRows() - 1; i > 0; i--) {
-        invoiceTable.removeRow(i); // Menggunakan removeRow dengan indeks
+        invoiceTable.removeRow(i); // Using removeRow with index
       }
     } else {
-      Logger.log("Hanya ada satu baris (header) atau tidak ada baris, tidak perlu menghapus.");
+      Logger.log("Only one row (header) or no rows exist, no need to delete.");
     }
 
-    // Tambahkan baris baru berdasarkan data invoice
-    for (var i = 0; i < dataInvoice.length; i++) {
-      var item = dataInvoice[i];
+    // Add new rows based on invoice data
+    for (var i = 0; i < invoiceData.length; i++) {
+      var item = invoiceData[i];
       var newRow = invoiceTable.appendTableRow();
-      newRow.appendTableCell(item.nama).setText(item.nama);
-      newRow.appendTableCell(item.kuantitas.toString()).setText(item.kuantitas.toString());
-      newRow.appendTableCell(item.harga.toLocaleString('id-ID')).setText(item.harga.toLocaleString('id-ID'));
-      newRow.appendTableCell((item.kuantitas * item.harga).toLocaleString('id-ID')).setText((item.kuantitas * item.harga).toLocaleString('id-ID'));
+      newRow.appendTableCell(item.name).setText(item.name);
+      newRow.appendTableCell(item.quantity.toString()).setText(item.quantity.toString());
+      newRow.appendTableCell(item.price.toLocaleString('id-ID')).setText(item.price.toLocaleString('id-ID'));
+      newRow.appendTableCell((item.quantity * item.price).toLocaleString('id-ID')).setText((item.quantity * item.price).toLocaleString('id-ID'));
     }
 
-    // Tambahkan baris total (contoh sederhana, perlu disesuaikan)
+    // Add total row (simple example, needs adjustment)
     var totalRow = invoiceTable.appendTableRow();
     totalRow.appendTableCell('Total');
-    totalRow.appendTableCell(''); // Sel kosong untuk kolom kuantitas
-    totalRow.appendTableCell(''); // Sel kosong untuk kolom harga satuan
-    totalRow.appendTableCell(dataInvoice.reduce(function(sum, item) {
-      return sum + (item.kuantitas * item.harga);
-    }, 0).toLocaleString('id-ID')).setText(dataInvoice.reduce(function(sum, item) {
-      return sum + (item.kuantitas * item.harga);
+    totalRow.appendTableCell(''); // Empty cell for quantity column
+    totalRow.appendTableCell(''); // Empty cell for unit price column
+    totalRow.appendTableCell(invoiceData.reduce(function(sum, item) {
+      return sum + (item.quantity * item.price);
+    }, 0).toLocaleString('id-ID')).setText(invoiceData.reduce(function(sum, item) {
+      return sum + (item.quantity * item.price);
     }, 0).toLocaleString('id-ID'));
 
-    // Gabungkan tiga sel pertama di baris total
-    totalRow.getCell(1).merge(); // Gabungkan sel kedua dengan sel pertama
-    totalRow.getCell(2).merge(); // Gabungkan sel ketiga dengan sel kedua (yang sudah bergabung)
+    // Merge the first three cells in the total row
+    totalRow.getCell(1).merge(); // Merge the second cell with the first
+    totalRow.getCell(2).merge(); // Merge the third cell with the second (which is already merged)
 
   } else {
-    Logger.log('Tabel invoice tidak ditemukan dalam dokumen.');
+    Logger.log('Invoice table not found in the document.');
   }
 }
 
-// Contoh penggunaan:
+// Example usage:
 function main() {
-  var templateId = '1g5mFGbpsTG2m0pzrfrxIZGlGXWt6xcVsKFMjzeYtL-Y'; // Ganti dengan ID file template Anda
-  var dataInvoice = [
-    { nama: "Jasa Desain", kuantitas: 1, harga: 500000 },
-    { nama: "Cetak Brosur", kuantitas: 100, harga: 5000 },
-    { nama: "Konsultasi", kuantitas: 2, harga: 250000 }
+  var templateId = 'YOUR TEMPLATE DOCS FILEID HERE'; // Replace with your template file ID
+  var invoiceData = [
+    { name: "Jasa Desain", quantity: 1, price: 500000 },
+    { name: "Cetak Brosur", quantity: 100, price: 5000 },
+    { name: "Konsultasi", quantity: 2, price: 250000 }
   ];
-  var namaFileBaru = 'Invoice PT Maju Jaya - ' + Utilities.formatDate(new Date(), Session.getTimeZone(), 'yyyyMMdd');
+  var newFileName = 'Invoice PT Maju Jaya - ' + Utilities.formatDate(new Date(), Session.getTimeZone(), 'yyyyMMdd');
 
-  buatInvoiceDariTemplate(templateId, dataInvoice, namaFileBaru);
+  createInvoiceFromTemplate(templateId, invoiceData, newFileName);
 }
